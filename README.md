@@ -11,11 +11,17 @@ A user-friendly, interactive Python script to organize files in a directory into
 - **Robust Error Handling:** Gracefully handles common issues like file-already-exists, permissions errors, and locked files without crashing.
 - **Self-Contained:** No external libraries needed. Runs with a standard Python installation.
 
+## Download the Executable
+
+For Windows users, you can download the standalone `organizer.exe` directly from the [Releases page](https://github.com/YourUsername/FileTypeOrganizer/releases).
+
 ## Requirements
 
 - Python 3.x
 
-## How to Use
+## How to Use (Source Code)
+
+If you prefer to run the Python source code directly:
 
 1.  Open a terminal or command prompt.
 2.  Navigate to the directory where the script is located:
