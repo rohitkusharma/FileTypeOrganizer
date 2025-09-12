@@ -13,7 +13,7 @@ A user-friendly, interactive Python script to organize files in a directory into
 
 ## Download the Executable
 
-For Windows users, you can download the standalone `organizer.exe` directly from the [Releases page](https://github.com/YourUsername/FileTypeOrganizer/releases).
+For Windows users, you can download the standalone `organizer.exe` directly from the [Releases page]([https://github.com/YourUsername/FileTypeOrganizer/releases](https://github.com/rohitkusharma/FileTypeOrganizer/releases/tag/v1.0.0)).
 
 ## Requirements
 
