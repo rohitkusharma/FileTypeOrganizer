@@ -69,19 +69,14 @@ class TestFileOrganizer(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_load_categories_default(self):
-        """Test loading default categories when no config file exists."""
+        """Test loading categories when no config file exists."""
         # Remove any existing categories.json
         if os.path.exists('categories.json'):
             os.remove('categories.json')
         
-        categories = organizer.load_categories()
-        
-        self.assertIsInstance(categories, dict)
-        self.assertIn('Images', categories)
-        self.assertIn('Documents', categories)
-        self.assertIn('Videos', categories)
-        self.assertIn('.jpg', categories['Images'])
-        self.assertIn('.pdf', categories['Documents'])
+        # Since we removed the fallback, this should raise an exception
+        with self.assertRaises(FileNotFoundError):
+            organizer.load_categories()
 
     def test_load_categories_from_file(self):
         """Test loading categories from existing config file."""
@@ -105,11 +100,9 @@ class TestFileOrganizer(unittest.TestCase):
         with open('categories.json', 'w') as f:
             f.write('invalid json content {')
         
-        # Should return default categories on error
-        categories = organizer.load_categories()
-        
-        self.assertIsInstance(categories, dict)
-        self.assertIn('Images', categories)
+        # Should raise a JSONDecodeError
+        with self.assertRaises(json.JSONDecodeError):
+            organizer.load_categories()
 
     @patch('organizer.logging.getLogger')
     def test_list_available_files(self, mock_logger):
@@ -158,6 +151,19 @@ class TestFileOrganizer(unittest.TestCase):
 
     def test_file_extension_categorization(self):
         """Test that files are categorized correctly by extension."""
+        # Create a minimal categories.json for testing
+        test_categories = {
+            "Images": [".jpg"],
+            "Documents": [".pdf"],
+            "Videos": [".mp4"],
+            "Audio": [".mp3"],
+            "Scripts": [".py"],
+            "Archives": [".zip"]
+        }
+        
+        with open('categories.json', 'w') as f:
+            json.dump(test_categories, f)
+        
         categories = organizer.load_categories()
         
         # Test some known extensions
@@ -215,21 +221,17 @@ class TestConfigurationManagement(unittest.TestCase):
         shutil.rmtree(self.test_dir)
 
     def test_config_file_creation(self):
-        """Test that config file is created with default categories."""
+        """Test behavior when config file doesn't exist."""
         # Ensure no config file exists
         if os.path.exists('categories.json'):
             os.remove('categories.json')
         
-        categories = organizer.load_categories()
+        # Since we removed auto-creation, this should raise an exception
+        with self.assertRaises(FileNotFoundError):
+            organizer.load_categories()
         
-        # Config file should now exist
-        self.assertTrue(os.path.exists('categories.json'))
-        
-        # Verify it's valid JSON
-        with open('categories.json', 'r') as f:
-            loaded_config = json.load(f)
-        
-        self.assertEqual(loaded_config, categories)
+        # Config file should not be created automatically anymore
+        self.assertFalse(os.path.exists('categories.json'))
 
     def test_custom_category_addition(self):
         """Test adding custom categories to config file."""

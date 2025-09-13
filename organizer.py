@@ -40,38 +40,25 @@ def setup_logging():
 def load_categories():
     """Load file categories from the configuration file."""
     config_file = "categories.json"
-    default_categories = {
-        "Images": [".jpg", ".jpeg", ".jpe", ".jif", ".jfif", ".jfi", ".png", ".gif", ".webp", ".tiff", ".tif", ".psd", ".raw", ".arw", ".cr2", ".nrw", ".k25", ".bmp", ".dib", ".heif", ".heic", ".ind", ".indd", ".indt", ".jp2", ".j2k", ".jpf", ".jpx", ".jpm", ".mj2", ".svg", ".svgz", ".ai", ".eps"],
-        "Videos": [".webm", ".mpg", ".mp2", ".mpeg", ".mpe", ".mpv", ".ogg", ".mp4", ".m4p", ".m4v", ".avi", ".wmv", ".mov", ".qt", ".flv", ".swf", ".avchd"],
-        "Audio": [".m4a", ".flac", ".mp3", ".wav", ".wma", ".aac"],
-        "Documents": [".doc", ".docx", ".odt", ".pdf", ".xls", ".xlsx", ".ods", ".ppt", ".pptx", ".odp", ".txt", ".rtf", ".md"],
-        "Archives": [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".iso", ".dmg"],
-        "Scripts": [".py", ".js", ".ts", ".html", ".htm", ".css", ".scss", ".java", ".c", ".cpp", ".h", ".cs", ".sh", ".bat", ".php", ".go", ".swift", ".sql", ".json", ".xml", ".yml", ".yaml"],
-        "Executables": [".exe", ".msi", ".app", ".deb", ".rpm"],
-        "Fonts": [".ttf", ".otf", ".woff", ".woff2"],
-        "Data": [".csv", ".dat", ".db", ".log", ".mdb", ".sav", ".sqlite", ".dbf"],
-        "Presentations": [".ppt", ".pptx", ".odp", ".key"],
-        "Spreadsheets": [".xls", ".xlsx", ".ods", ".csv"]
-    }
     
     try:
-        if os.path.exists(config_file):
-            with open(config_file, 'r', encoding='utf-8') as f:
-                categories = json.load(f)
-            logger = logging.getLogger(__name__)
-            logger.info(f"Loaded categories from {config_file}")
-            return categories
-        else:
-            # Create the config file with default categories if it doesn't exist
-            with open(config_file, 'w', encoding='utf-8') as f:
-                json.dump(default_categories, f, indent=2)
-            logger = logging.getLogger(__name__)
-            logger.info(f"Created default {config_file}")
-            return default_categories
-    except (json.JSONDecodeError, IOError) as e:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            categories = json.load(f)
         logger = logging.getLogger(__name__)
-        logger.error(f"Error loading {config_file}: {e}. Using default categories.")
-        return default_categories
+        logger.info(f"Loaded categories from {config_file}")
+        return categories
+    except FileNotFoundError:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Configuration file '{config_file}' not found. Please ensure it exists.")
+        raise FileNotFoundError(f"Required configuration file '{config_file}' is missing. Please check the project directory.")
+    except json.JSONDecodeError as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Invalid JSON in {config_file}: {e}")
+        raise json.JSONDecodeError(f"Configuration file '{config_file}' contains invalid JSON. Please check the file format.", config_file, 0)
+    except IOError as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error reading {config_file}: {e}")
+        raise IOError(f"Unable to read configuration file '{config_file}': {e}")
 
 # This dictionary acts as the "rulebook" for the organization.
 # - The "keys" (e.g., "Images") are the names of the folders that will be created.
