@@ -7,24 +7,76 @@
 import os
 import sys
 import shutil
+import logging
+import json
+from datetime import datetime
+
+# Configure logging
+def setup_logging():
+    """Set up logging configuration for file operations."""
+    # Create logs directory if it doesn't exist
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
+    
+    # Create a unique log filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"logs/organizer_{timestamp}.log"
+    
+    # Configure logging format
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_filename),
+            logging.StreamHandler()  # Also log to console
+        ]
+    )
+    
+    logger = logging.getLogger(__name__)
+    logger.info("FileOrganizer session started")
+    logger.info(f"Log file: {log_filename}")
+    return logger
+
+def load_categories():
+    """Load file categories from the configuration file."""
+    config_file = "categories.json"
+    default_categories = {
+        "Images": [".jpg", ".jpeg", ".jpe", ".jif", ".jfif", ".jfi", ".png", ".gif", ".webp", ".tiff", ".tif", ".psd", ".raw", ".arw", ".cr2", ".nrw", ".k25", ".bmp", ".dib", ".heif", ".heic", ".ind", ".indd", ".indt", ".jp2", ".j2k", ".jpf", ".jpx", ".jpm", ".mj2", ".svg", ".svgz", ".ai", ".eps"],
+        "Videos": [".webm", ".mpg", ".mp2", ".mpeg", ".mpe", ".mpv", ".ogg", ".mp4", ".m4p", ".m4v", ".avi", ".wmv", ".mov", ".qt", ".flv", ".swf", ".avchd"],
+        "Audio": [".m4a", ".flac", ".mp3", ".wav", ".wma", ".aac"],
+        "Documents": [".doc", ".docx", ".odt", ".pdf", ".xls", ".xlsx", ".ods", ".ppt", ".pptx", ".odp", ".txt", ".rtf", ".md"],
+        "Archives": [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".iso", ".dmg"],
+        "Scripts": [".py", ".js", ".ts", ".html", ".htm", ".css", ".scss", ".java", ".c", ".cpp", ".h", ".cs", ".sh", ".bat", ".php", ".go", ".swift", ".sql", ".json", ".xml", ".yml", ".yaml"],
+        "Executables": [".exe", ".msi", ".app", ".deb", ".rpm"],
+        "Fonts": [".ttf", ".otf", ".woff", ".woff2"],
+        "Data": [".csv", ".dat", ".db", ".log", ".mdb", ".sav", ".sqlite", ".dbf"],
+        "Presentations": [".ppt", ".pptx", ".odp", ".key"],
+        "Spreadsheets": [".xls", ".xlsx", ".ods", ".csv"]
+    }
+    
+    try:
+        if os.path.exists(config_file):
+            with open(config_file, 'r', encoding='utf-8') as f:
+                categories = json.load(f)
+            logger = logging.getLogger(__name__)
+            logger.info(f"Loaded categories from {config_file}")
+            return categories
+        else:
+            # Create the config file with default categories if it doesn't exist
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(default_categories, f, indent=2)
+            logger = logging.getLogger(__name__)
+            logger.info(f"Created default {config_file}")
+            return default_categories
+    except (json.JSONDecodeError, IOError) as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error loading {config_file}: {e}. Using default categories.")
+        return default_categories
 
 # This dictionary acts as the "rulebook" for the organization.
 # - The "keys" (e.g., "Images") are the names of the folders that will be created.
 # - The "values" are lists of file extensions (in lowercase) that belong to that category.
-# - You can easily customize this list to add new file types or change categories.
-CATEGORIES = {
-    "Images": [".jpg", ".jpeg", ".jpe", ".jif", ".jfif", ".jfi", ".png", ".gif", ".webp", ".tiff", ".tif", ".psd", ".raw", ".arw", ".cr2", ".nrw", ".k25", ".bmp", ".dib", ".heif", ".heic", ".ind", ".indd", ".indt", ".jp2", ".j2k", ".jpf", ".jpx", ".jpm", ".mj2", ".svg", ".svgz", ".ai", ".eps"],
-    "Videos": [".webm", ".mpg", ".mp2", ".mpeg", ".mpe", ".mpv", ".ogg", ".mp4", ".m4p", ".m4v", ".avi", ".wmv", ".mov", ".qt", ".flv", ".swf", ".avchd"],
-    "Audio": [".m4a", ".flac", ".mp3", ".wav", ".wma", ".aac"],
-    "Documents": [".doc", ".docx", ".odt", ".pdf", ".xls", ".xlsx", ".ods", ".ppt", ".pptx", ".odp", ".txt", ".rtf", ".md"],
-    "Archives": [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".iso", ".dmg"],
-    "Scripts": [".py", ".js", ".ts", ".html", ".htm", ".css", ".scss", ".java", ".c", ".cpp", ".h", ".cs", ".sh", ".bat", ".php", ".go", ".swift", ".sql", ".json", ".xml", ".yml", ".yaml"],
-    "Executables": [".exe", ".msi", ".app", ".deb", ".rpm"],
-    "Fonts": [".ttf", ".otf", ".woff", ".woff2"],
-    "Data": [".csv", ".dat", ".db", ".log", ".mdb", ".sav", ".sqlite", ".dbf"],
-    "Presentations": [".ppt", ".pptx", ".odp", ".key"],
-    "Spreadsheets": [".xls", ".xlsx", ".ods", ".csv"]
-}
+# - You can easily customize this list by editing the categories.json file.
 
 def get_files_to_organize(target_dir):
     """Scans a directory and returns a list of files to be organized."""
@@ -66,22 +118,34 @@ def list_available_files(target_dir):
             print(f"  - {filename}")
     print("-----------------------------------------------------\n")
 
-def perform_organization(target_dir, is_dry_run):
+def perform_organization(target_dir, is_dry_run, categories):
     """Handles Menu Options 1, 2, 3, 7, 8, 9: Performs the dry run or the actual organization."""
+    logger = logging.getLogger(__name__)
+    
     # Set the header message based on whether it's a dry run or a real one.
     header = f"--- Dry Run: Planning organization in: {os.path.abspath(target_dir)} ---"
     if not is_dry_run:
         header = f"--- Organizing files in: {os.path.abspath(target_dir)} ---"
     print(f"\n{header}")
+    
+    # Log the operation start
+    operation_type = "DRY RUN" if is_dry_run else "ORGANIZATION"
+    logger.info(f"{operation_type} started in directory: {os.path.abspath(target_dir)}")
 
     files_to_organize = get_files_to_organize(target_dir)
     if files_to_organize is None:
-        print(f"Error: Directory not found.")
+        error_msg = f"Error: Directory not found."
+        print(error_msg)
+        logger.error(f"Directory not found: {os.path.abspath(target_dir)}")
         return
 
     if not files_to_organize:
-        print("No files to organize in this directory.")
+        info_msg = "No files to organize in this directory."
+        print(info_msg)
+        logger.info(f"No files found to organize in: {os.path.abspath(target_dir)}")
         return
+
+    logger.info(f"Found {len(files_to_organize)} files to process")
 
     # Process each file one by one.
     for filename in files_to_organize:
@@ -90,12 +154,14 @@ def perform_organization(target_dir, is_dry_run):
         
         # Skip files that have no extension.
         if not file_ext:
-            print(f"  - Skipping '{filename}' (no file extension).")
+            skip_msg = f"  - Skipping '{filename}' (no file extension)."
+            print(skip_msg)
+            logger.info(f"Skipped file without extension: {filename}")
             continue
 
-        # Search for the extension in our CATEGORIES dictionary.
+        # Search for the extension in our categories dictionary.
         found_category = False
-        for category, extensions in CATEGORIES.items():
+        for category, extensions in categories.items():
             if file_ext in extensions:
                 # If a match is found, prepare the source and destination paths.
                 dest_folder_path = os.path.join(target_dir, category)
@@ -104,41 +170,59 @@ def perform_organization(target_dir, is_dry_run):
                 # This is the main logic branch: either plan or execute the move.
                 if is_dry_run:
                     # DRY RUN: Just print the plan.
-                    print(f"  - Plan: Move '{filename}' to '{category}' folder.")
+                    plan_msg = f"  - Plan: Move '{filename}' to '{category}' folder."
+                    print(plan_msg)
+                    logger.info(f"DRY RUN: Would move '{filename}' to '{category}' folder")
                 else:
                     # EXECUTION: Try to move the file, with error handling.
                     try:
                         os.makedirs(dest_folder_path, exist_ok=True)
                         shutil.move(source_file_path, dest_folder_path)
-                        print(f"  - Moved '{filename}' to '{category}' folder.")
+                        success_msg = f"  - Moved '{filename}' to '{category}' folder."
+                        print(success_msg)
+                        logger.info(f"Successfully moved '{filename}' to '{category}' folder at {dest_folder_path}")
                     except PermissionError:
-                        print(f"  - ERROR moving '{filename}': Permission denied. Suggestion: Check if the file is in use or if you have write permissions.")
+                        error_msg = f"  - ERROR moving '{filename}': Permission denied. Suggestion: Check if the file is in use or if you have write permissions."
+                        print(error_msg)
+                        logger.error(f"Permission denied when moving '{filename}' to '{category}' folder")
                     except FileNotFoundError:
-                        print(f"  - ERROR moving '{filename}': File not found. Suggestion: It may have been moved or deleted by another process.")
+                        error_msg = f"  - ERROR moving '{filename}': File not found. Suggestion: It may have been moved or deleted by another process."
+                        print(error_msg)
+                        logger.error(f"File not found when attempting to move '{filename}'")
                     except OSError as e:
                         if "already exists" in str(e):
-                            print(f"  - SKIPPED: '{filename}' already exists in the '{category}' folder.")
+                            skip_msg = f"  - SKIPPED: '{filename}' already exists in the '{category}' folder."
+                            print(skip_msg)
+                            logger.warning(f"File '{filename}' already exists in '{category}' folder - skipped")
                         else:
-                            print(f"  - ERROR moving '{filename}': An unexpected OS error occurred.")
+                            error_msg = f"  - ERROR moving '{filename}': An unexpected OS error occurred."
+                            print(error_msg)
                             print(f"    |--> OS Message: {e}")
                             print(f"    |--> Instructions:")
                             print(f"    |    1. Read the 'OS Message' above for specific details.")
                             print(f"    |    2. Check if the destination drive is full.")
                             print(f"    |    3. Check if the file path is becoming too long (a common issue on Windows).")
                             print(f"    |    4. Ensure the filename does not contain characters that are illegal in the destination path.")
+                            logger.error(f"OS error when moving '{filename}': {e}")
                 
                 found_category = True
                 break # Stop searching for categories once one is found.
         
         # If the file extension was not found in any category, skip the file.
         if not found_category:
-            print(f"  - Skipping '{filename}' (unknown file type '{file_ext}').")
+            skip_msg = f"  - Skipping '{filename}' (unknown file type '{file_ext}')."
+            print(skip_msg)
+            logger.info(f"Skipped unknown file type: {filename} ({file_ext})")
 
     # Print a final status message.
     if is_dry_run:
-        print("--- Dry Run Complete. No files were moved. ---")
+        final_msg = "--- Dry Run Complete. No files were moved. ---"
+        print(final_msg)
+        logger.info("DRY RUN completed successfully")
     else:
-        print("--- File Organization Complete. ---")
+        final_msg = "--- File Organization Complete. ---"
+        print(final_msg)
+        logger.info("File organization completed successfully")
 
 def get_target_dir_from_user():
     """Handles Menu Options 3, 6, 9: Prompts user for a specific directory and validates it."""
@@ -150,6 +234,12 @@ def get_target_dir_from_user():
 
 def main():
     """The main function that runs the interactive menu loop."""
+    # Set up logging
+    logger = setup_logging()
+    
+    # Load categories from config file
+    categories = load_categories()
+    
     # The main loop runs forever until the user chooses to exit.
     while True:
         # Step 1: Display the menu of options.
@@ -197,13 +287,13 @@ def main():
         # Step 4: Call the appropriate function based on the user's choice.
         if choice in ['1', '2', '3']:
             # These are the "Organize" options.
-            perform_organization(target_dir, is_dry_run=False)
+            perform_organization(target_dir, is_dry_run=False, categories=categories)
         elif choice in ['4', '5', '6']:
             # These are the "List" options.
             list_available_files(target_dir)
         elif choice in ['7', '8', '9']:
             # These are the "Dry Run" options.
-            perform_organization(target_dir, is_dry_run=True)
+            perform_organization(target_dir, is_dry_run=True, categories=categories)
 
 # This is a standard Python convention. 
 # It ensures that the main() function is called only when the script is executed directly.

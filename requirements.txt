@@ -1,0 +1,10 @@
+# No external dependencies required
+# This project uses only Python standard library modules:
+# - os
+# - sys  
+# - shutil
+# - logging
+# - json
+# - datetime
+# - tempfile (for testing)
+# - unittest (for testing)
